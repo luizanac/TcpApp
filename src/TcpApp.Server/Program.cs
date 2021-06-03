@@ -12,8 +12,6 @@ try
     server = new TcpListener(ipAddress, TcpConfig.Port);
 
     server.Start();
-
-    var buffer = new byte[1024 * 1024];
     while (true)
     {
         WriteLine("Waiting for a connection...");
@@ -21,41 +19,24 @@ try
         var client = server.AcceptTcpClient();
         WriteLine("Client connected!");
 
-        var stream = client.GetStream();
-        int bytesReaded;
+        var networkStream = client.GetStream();
+        var (transportCode, bodyLength, bodyBytes) = Protocol.ReceiveAsync(networkStream).Result;
 
-        TransportCode? connectionCode = default;
-        while ((bytesReaded = stream.Read(buffer, 0, buffer.Length)) != 0)
+        switch (transportCode)
         {
-            if (bytesReaded == sizeof(uint))
-            {
-                var code = BitConverter.ToUInt32(buffer, 0);
-                connectionCode = (TransportCode)code;
-                WriteLine($"Code is: {code}");
-            }
-
-            if (connectionCode != null && bytesReaded > sizeof(uint))
-            {
-                var data = Encoding.UTF8.GetString(buffer, 0, bytesReaded);
-                WriteLine($"Received data: {data}");
-
-                switch (connectionCode)
-                {
-                    case TransportCode.Json:
-                        WriteLine("Processing Json...");
-                        break;
-                    case TransportCode.File:
-                        WriteLine("Processing File...");
-                        break;
-                    default:
-                        WriteLine("unrecognized code");
-                        break;
-                }
-
-                var message = Encoding.UTF8.GetBytes($"Your {connectionCode.ToString()} is being processed");
-                stream.Write(message, 0, message.Length);
-            }
+            case TransportCode.Json:
+                WriteLine("Processing JSON...");
+                break;
+            case TransportCode.File:
+                WriteLine("Processing FILE");
+                break;
+            default:
+                WriteLine("Unrecognized TranportCode formart!");
+                break;
         }
+
+        var message = Encoding.UTF8.GetBytes($"Your {transportCode.ToString()} is being processed");
+        networkStream.Write(message, 0, message.Length);
 
         client.Close();
     }

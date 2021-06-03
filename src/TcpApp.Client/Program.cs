@@ -14,17 +14,20 @@ static void Connect(string data)
 
         var stream = client.GetStream();
 
-        var code = (uint)TransportCode.File;
-        WriteLine(code);
-        var codeBytes = BitConverter.GetBytes(code);
+        var code = (byte)TransportCode.Json;
+        var codeBytes = new byte[] { code };
         stream.Write(codeBytes, 0, codeBytes.Length);
 
-        Thread.Sleep(5000);
+        var bodyBytes = Encoding.UTF8.GetBytes(data);
+        var bodyLength = bodyBytes.Length;
+        var bodyLengthBytes = BitConverter.GetBytes(bodyLength);
+        stream.Write(bodyLengthBytes, 0, bodyLengthBytes.Length);
+        stream.Write(bodyBytes, 0, bodyLength);
 
-        var dataBytes = Encoding.UTF8.GetBytes(data);
-        stream.Write(dataBytes, 0, dataBytes.Length);
+        // Thread.Sleep(5000);
 
-        var buffer = new Byte[1024*1024];
+
+        var buffer = new Byte[256];
         var bytesReaded = stream.Read(buffer, 0, buffer.Length);
         var responseData = Encoding.UTF8.GetString(buffer, 0, bytesReaded);
         WriteLine("Received data: {0} ", responseData);
