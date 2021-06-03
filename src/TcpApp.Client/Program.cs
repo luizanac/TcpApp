@@ -1,48 +1,25 @@
-﻿using System;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
+using System.Threading.Tasks;
 using TcpApp.Shared;
 using static System.Console;
 
-static void Connect(string data)
+static async Task Connect(string data)
 {
-    try
-    {
-        var client = new TcpClient(TcpConfig.ServerAddress, TcpConfig.Port);
+    var client = new TcpClient(SocketConfig.ServerAddress, SocketConfig.Port);
+    var networkStream = client.GetStream();
 
-        var stream = client.GetStream();
+    await Protocol.SendAsync(networkStream, DataType.Json, Encoding.UTF8.GetBytes(data));
+    await Protocol.SendAsync(networkStream, DataType.Json, Encoding.UTF8.GetBytes(data));
 
-        var code = (byte)TransportCode.Json;
-        var codeBytes = new byte[] { code };
-        stream.Write(codeBytes, 0, codeBytes.Length);
+    var (dataType, body) = await Protocol.ReceiveAsync(networkStream);
 
-        var bodyBytes = Encoding.UTF8.GetBytes(data);
-        var bodyLength = bodyBytes.Length;
-        var bodyLengthBytes = BitConverter.GetBytes(bodyLength);
-        stream.Write(bodyLengthBytes, 0, bodyLengthBytes.Length);
-        stream.Write(bodyBytes, 0, bodyLength);
-
-        // Thread.Sleep(5000);
+    new ProtocolHandler(dataType).Handle(body);
 
 
-        var buffer = new Byte[256];
-        var bytesReaded = stream.Read(buffer, 0, buffer.Length);
-        var responseData = Encoding.UTF8.GetString(buffer, 0, bytesReaded);
-        WriteLine("Received data: {0} ", responseData);
-
-        stream.Close();
-        client.Close();
-    }
-    catch (ArgumentNullException e)
-    {
-        WriteLine("ArgumentNullException: {0}", e);
-    }
-    catch (SocketException e)
-    {
-        WriteLine("SocketException: {0}", e);
-    }
+    networkStream.Close();
+    client.Close();
 }
 
 WriteLine("Initializing connection...");
@@ -57,4 +34,4 @@ var jsonString = JsonSerializer.Serialize(new[]{
         Age = 39
     }
 });
-Connect(jsonString);
+await Connect(jsonString);

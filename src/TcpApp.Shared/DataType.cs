@@ -1,8 +1,8 @@
 namespace TcpApp.Shared
 {
-    public enum TransportCode
+    public enum DataType
     {
         Json = 101,
-        File = 102
+        Xml = 102
     }
 }
